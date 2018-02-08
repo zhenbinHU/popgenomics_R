@@ -1,2 +1,2 @@
 # popgenomics_R
-The R code I used in my projects.
+The R code for population genomics.
