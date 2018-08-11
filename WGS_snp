@@ -1,1 +1,66 @@
 
+#!/bin/bash
+#SBATCH --job-name=SNP_call
+#SBATCH --output=SNP_call.txt
+#SBATCH --time=13-00:00:00
+#SBATCH --ntasks=1
+#SBATCH --ntasks-per-node=4
+#SBATCH --partition=killable.q
+#SBATCH --mem-per-cpu=20GB
+#SBATCH --mail-user=zhenbin@ksu.edu
+module load Java
+cd /bulk/zhenbin/recomb/soybean_rr/nam_p
+bwa="/path/bwa"
+destdir="/path/bam"
+reference="/path/ref.fa"
+$bwa  index $reference
+
+picard="/path/picard-tools-1.121"
+java -Xmx50g -jar $picard/CreateSequenceDictionary.jar R=reference.fa O=reference.fa.dict 
+/path/samtools faidx Gmax_189.fa
+
+reference="/path/reference.fa"
+GenomeAnalysisTK="/path/GenomeAnalysisTK.jar"
+
+file="sample1 sample2 sample3 sample4 sample5 sample6 sample7 sample8 sample9 sample10 sample11 sample12 sample13 \
+sample14 sample15 sample16 sample17 sample18 sample19 sample20 sample21 sample22 sample23 sample24"
+
+for fname in $file
+do
+base=${fname%.sra_*.fastq}
+$bwa mem -t 4 -R '@RG\tID:noID\tPL:ILLUMINA\tLB:noLB\tSM:bar' $reference $base.sra_1.fastq $base.sra_2.fastq > $destdir/$base.sam
+java -Xmx20g -jar $picard/SortSam.jar SO=coordinate INPUT=$destdir/$base.sam OUTPUT=$destdir/$base.bam VALIDATION_STRINGENCY=LENIENT
+java -Xmx20g -jar $picard/MarkDuplicates.jar INPUT=$destdir/$base.bam OUTPUT=$destdir/$base.marked.bam METRICS_FILE=metrics CREATE_INDEX=true VALIDATION_STRINGENCY=LENIENT
+rm $destdir/SRR1297$i.sam
+done
+echo =============================Alignment were done!===================================
+for fname in $file
+do
+base=${fname%.marked.bam}
+java -Xms10g -Xmx10g -jar $GenomeAnalysisTK -T RealignerTargetCreator -R $reference -o $base.marked.bam.list -I $base.marked.bam 
+java -Xms10g -Xmx10g -jar $GenomeAnalysisTK -I $base.marked.bam -R $reference -T IndelRealigner -targetIntervals $base.marked.bam.list -o $base.realigned.bam
+done
+
+for i in $file
+do
+java -Xms50m -Xmx50g -jar $GenomeAnalysisTK \
+-T HaplotypeCaller \
+-R $reference \
+-I $i.realigned.bam \
+-stand_call_conf 50 \
+-ERC GVCF \
+-variant_index_type LINEAR -variant_index_parameter 128000 \
+-o $i.vcf
+sed "s/bar/${i}/g" $i.vcf > $i.vcf
+done
+
+echo ===========================Start SNP calling=======================================
+java -Xms50m -Xmx50g -jar $GenomeAnalysisTK -T GenotypeGVCFs \
+-R $reference \
+-V sample1.vcf -V sample2.vcf -V sample3.vcf -V sample4.vcf \
+-V sample5.vcf -V sample6.vcf -V sample7.vcf -V sample8.vcf \
+-V sample9.vcf -V sample10.vcf -V sample11.vcf -V sample12.vcf \
+-V sample13.vcf -V sample14.vcf -V sample15.vcf -V sample16.vcf \
+-V sample17.vcf -V sample18.vcf -V sample19.vcf -V sample20.vcf \
+-V sample21.vcf -V sample22.vcf -V sample23.vcf -V sample24.vcf \
+-o NAM.vcf
