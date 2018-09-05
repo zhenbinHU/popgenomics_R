@@ -1,4 +1,3 @@
-
 #!/bin/bash
 #SBATCH --job-name=SNP_call
 #SBATCH --output=SNP_call.txt
