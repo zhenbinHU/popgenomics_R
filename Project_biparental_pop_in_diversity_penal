@@ -1,0 +1,25 @@
+# This code was used to project the biparental population in the PCA results from diversity penal
+# In the dataset from 1 to 681 were lines from 3 RIL families
+# from 682 to end were diversity accessions
+vcf<-"snp_filtered.recode.vcf"
+vcf<-read.vcfR(vcf)
+snp<-vcf@gt
+
+snp<-snp[,-1]
+snp<-as.matrix(snp)
+snp[snp=="0/0"]<-0
+snp[snp=="0/1"]<-1
+snp[snp=="1/0"]<-1
+snp[snp=="1/1"]<-2
+snp<-t(snp)
+
+
+snp<-apply(snp,2,as.numeric)
+
+pc.training<-prcomp(snp[682:dim(snp)[1],])  # training the model
+pc.predict<-predict(pc.training,snp[1:681,])  # prediction
+
+png("pc_pred.png",width=8,height=8,type="cairo",res=600,units="in")
+plot(pc.training$x[,1],pc.training$x[,2],pch=20)
+points(pc.predict[,1],pc.predict[,3],pch=20,col=2)
+dev.off()
