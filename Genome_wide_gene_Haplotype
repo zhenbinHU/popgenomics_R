@@ -1,0 +1,61 @@
+setwd("/bulk/zhenbin/biomass_gwas/haplotype")
+library(vcfR)
+library(pegas)
+
+gene<-read.table("/bulk/zhenbin/Sorghum_diversity/Sbicolor_313_v3.1.gene.gff3",sep="\t",skip=1)
+gene<-gene[gene$V3=="gene",]
+gene<-gene[gene$V1=="Chr01"]
+gene$V9<-gsub(";.+","",gene$V9)
+gene$V9<-gsub("ID=","",gene$V9)
+
+vcftools<-"/homes/zhenbin/vcftools/bin/vcftools --vcf /bulk/zhenbin/TERRA/Genomics_analysis/SNP/SNP_only/BAP_snponly_363.recode.vcf"
+
+for(i in 1:dim(gene)[1]){
+    chr<-gsub("Chr","",gene$V1[i])
+    chr<-as.numeric(chr)
+    start<-gene$V4[i]
+    end<-gene$V5[i]
+    gene_id<-gene$V9[i]
+    cmd<-paste(vcftools," --chr ",chr," --from-bp ",start," --to-bp ",end," --recode --recode-INFO-all --out ",gene_id)
+    system(cmd)
+    system("rm *log")
+}
+
+file="Chr01 Chr02 Chr03 Chr04 Chr05 Chr06 Chr07 Chr08 Chr09 Chr10"
+for i in $file
+    do
+    sed "s/Chr01/$i/g" chr > $i
+    sed "s/Chr01/$i/g" chr.sh > $i.sh
+    sbatch $i.sh
+    done
+    
+haplotype_matrix<-NULL
+file<-list.files(pattern="recode.vcf")
+for(i in file){
+    vcf <- read.vcfR(i,verbose = FALSE)
+    my_dnabin1<-vcfR2DNAbin(vcf,consensus = TRUE,extract.haps=FALSE,
+                        verbose=FALSE)
+    # haplotype network
+    d <- my_dnabin1
+    h <- pegas::haplotype(d)
+    dat<-data.frame(Id=1:363)
+    
+    dat$Hap<-NA
+    if(length(d)==0){
+        dat$Hap=1 # if not SNP identified in gene,haplotype assigned with 1
+    }
+    else{
+        for(i in 1:length(attr(h, "index"))){
+        dat$Hap[dat$Id%in%attr(h, "index")[[i]]]<-i
+        }
+    }  
+    haplotype_matrix<-cbind(haplotype_matrix,dat$Hap)
+}
+
+nam<-gsub(".recode.vcf","",file)
+haplotype_matrix<-as.data.frame(haplotype_matrix)
+names(haplotype_matrix)<-nam
+Taxa<-attr(my_dnabin1, "dimnames")[[1]]
+haplotype_matrix<-data.frame(Taxa,haplotype_matrix)
+
+save(haplotye_matrix,file="haplotype.matrix.rda")
