@@ -1,0 +1,45 @@
+# heritability
+library(multtest)
+library(gplots)
+library(LDheatmap)
+library(genetics)
+library(ape)
+library(EMMREML)
+library(compiler) #this lib            
+library("scatterplot3d")
+source("http://zzlab.net/GAPIT/gapit_functions.txt")
+source("http://zzlab.net/GAPIT/emma.txt")
+
+library(rrBLUP)
+
+# convert hmp to numeric
+hmp<-read.delim("/bulk/zhenbin/SOYBEAN/GWAS/soysnp50k_wm82.a2_41317.correct.hmp.txt",header=F)
+myGAPIT <- GAPIT(G=hmp,output.numerical=TRUE)
+
+#myGD<-read.delim("/bulk/zhenbin/SOYBEAN/GWAS/GAPIT.Genotype.Numerical.txt",header=T)
+#myGM<-read.delim("/bulk/zhenbin/SOYBEAN/GWAS/GAPIT.Genotype.map.txt",header=T)
+
+myGD= myGAPIT$GD    
+myGM= myGAPIT$GM
+Taxa<-myGD$taxa
+Gid<-data.frame(Taxa)
+Gid$order<-1:dim(Gid)[1]   
+  
+G<-myGD[,-1]
+G<-G-1
+K<-A.mat(G)
+colnames(K)<-as.character(Gid$Taxa)
+row.names(K)<-as.character(Gid$Taxa)
+phen<-phen[,c(1,11:dim(phen)[2])]
+for(i in 2:dim(phen)[2]){
+    dat<-pheno[,c(1,i)]
+    dat<-na.omit(dat)
+    dat<-merge(dat,Gid,by.x="germplasm",by.y="Taxa")
+    Gt<-G[order(dat$order),]
+    kin<-K[dat$order,dat$order]
+    y<-dat[,2]
+    model <- mixed.solve(y,K=kin)
+    h2<-model$Vu/c(model$Vu+model$Ve)
+    cat("The heritability for ",names(phen)[i]," is ",h2,"!\n")
+}
+ 
