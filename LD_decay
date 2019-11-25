@@ -1,0 +1,49 @@
+# genome was split based on chromosome
+# LD decay was analyzed using PopLDdecay
+#!/bin/bash
+#SBATCH --job-name=LD
+#SBATCH --output=LD.txt
+#SBATCH --time=13-00:00:00
+#SBATCH --mem-per-cpu=100GB
+#SBATCH --mail-user=zhenbin@ksu.edu
+
+cd /bulk/zhenbin/sorghum_wgs/SNP/filtered
+dest<-"/bulk/zhenbin/sorghum_wgs/LD_decay"
+PopLDdecay="/homes/zhenbin/PopLDdecay3.28/bin/PopLDdecay"
+
+$PopLDdecay -InVCF filtered.filtered.Chr10.recode.vcf.recode.vcf -MaxDist 1000 -MAF 0.05 -OutStat $dest/LD.all05
+
+# above job was submit for each chromosome
+for i in 01 02 03 04 05 06 07 08 09 10
+    do
+    sed "s/Chr10/Chr$i/g" LD > LD$i
+    sbatch LD$i
+    done
+
+# figure 
+# LD decay curve
+setwd("/bulk/zhenbin/sorghum_wgs/LD_decay")
+system("gunzip *)
+div.file<-c("LD0520.stat","LD0519.stat","LD0517.stat","LD0516.stat",
+            "LD0514.stat","LD0513.stat","LD0512.stat","LD0511.stat",
+            "LD0510.stat","LD0509.stat","LD0508.stat","LD0507.stat",
+            "LD0506.stat","LD0505.stat","LD0504.stat","LD0503.stat",
+            "LD0502.stat","LD0501.stat")
+
+path_all<-"/bulk/zhenbin/sorghum_wgs/LD_decay"
+LD_file<-NULL
+for(i in 1:10){
+    chr<-formatC(i,width=2,flag="0")
+    dat<-read.table(sprintf("%s/LD.all.Chr%s.stat",path_all,chr),header=F)
+    LD_file<-rbind(LD_file,dat)
+}
+
+png("LD_decay_sorghum.png",width=5,height=4,res=600,unit="in",type="cairo")
+par(mai=c(0.6,0.6,0.2,0.2),mgp=c(1.2,0.2,0),tck=-0.01)
+plot(0,0,xlim=c(0,600000),ylim=c(0,0.5),axes=F,type="n",xlab="Distance KB",ylab=expression(italic(r^2)),cex.lab=1.2)
+axis(1,at=c(0,100,200,300,400,500,600)*1000,labels=c(0,100,200,300,400,500,600))
+axis(2,at=c(0,0.1,0.2,0.3,0.4,0.5),labels=c(0,0.1,0.2,0.3,0.4,0.5),las=1)
+smoothingSpline_all = smooth.spline(LD_file[,1],LD_file[,2], spar=0.05)
+lines(smoothingSpline_all,col="black")
+dev.off()
+
