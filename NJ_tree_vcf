@@ -1,0 +1,71 @@
+setwd("/bulk/zhenbin/sorghum_wgs/pop")
+
+library(SNPRelate)
+vcf.snp <- "/bulk/zhenbin/sorghum_wgs/SNP/filtered/sorghum.snp.vcf"
+snpgdsVCF2GDS(vcf.snp,"sorghumsnp.gds", method="copy.num.of.ref")
+genofile <- snpgdsOpen("sorghumsnp.gds")
+    
+snpset2 <- snpgdsLDpruning(genofile,ld.threshold = 1,maf=0.05,missing.rate=0.2)
+snpset2.id <- unlist(snpset2)
+
+# NJ tree
+
+ibs.hc <- snpgdsHCluster(snpgdsIBS(genofile,snp.id=snpset2.id, num.thread=10))
+rv <- snpgdsCutTree(ibs.hc)
+save(rv,file="njtree.rda")
+
+#load("njtree.rda")
+load("njtree.rda")
+library(dendextend)
+library(ape)
+tree<-as.phylo(as.dendrogram(rv$dendrogram))
+
+tree_tips<-tree$tip.label
+tree_tips<-data.frame(tree_tips,order=1:length(tree_tips))
+write.csv(tree_tips,"tree_tips.csv",row.names=F)
+
+png("Sorghum_njtree_unrooted.png",width=3,height=3,res=600,units="in",type="cairo")
+par(mai=c(0.2,0.2,0.2,0.2))
+plot.phylo(tree, type="u",show.tip.label=F,use.edge.length = T)
+dev.off()
+
+png("Sorghum_njtree_f.png",width=3,height=3,res=600,units="in",type="cairo")
+par(mai=c(0.2,0.2,0.2,0.2))
+plot.phylo(tree, type="f",show.tip.label=F,use.edge.length = T)
+dev.off()
+
+tree_tips<-read.csv("/bulk/zhenbin/TERRA/Genomics_analysis/pop_str/NJtree/tree_tips.csv",header=T)
+gm<-read.csv("/bulk/zhenbin/TERRA/Genomics_analysis/pop_str/PCA/Supplemental_File_1.csv",header=T,skip=2)
+gm$Taxa<-as.character(gm$Taxa)
+gm$Taxa[gm$Taxa=="RIO"]<-"rio"
+gm$Taxa<-gsub("PI_","PI",gm$Taxa)
+
+tree_tips_m<-merge(tree_tips,gm,by.x="tree_tips",by.y="Taxa",x.all=T)
+write.csv(tree_tips_m,"/bulk/zhenbin/TERRA/Genomics_analysis/pop_str/PCA/tree_tips_infor.csv",row.names=F)
+tree_tips_m<-read.csv("/bulk/zhenbin/TERRA/Genomics_analysis/pop_str/PCA/tree_tips_infor.csv",header=T)
+
+tree_tips_m$Origin<-as.character(tree_tips_m$Origin)
+tree_tips_m$color[tree_tips_m$Origin=="Ethiopia"]<-"blue"
+tree_tips_m$color[tree_tips_m$Origin=="India"]<-"green"
+tree_tips_m$color[tree_tips_m$Origin=="Kenya"]<-"goldenrod1"
+tree_tips_m$color[tree_tips_m$Origin=="Sudan"]<-"red"
+tree_tips_m$color[tree_tips_m$Origin%in%c("South Africa","Zimbabwe","Swaziland","Botswana")]<-"darkgoldenrod1"
+tree_tips_m$color[tree_tips_m$Origin=="Nigeria"]<-"darkorchid2"
+tree_tips_m$color[tree_tips_m$Origin=="Texas United States"]<-"orchid1"
+tree_tips_m$color[tree_tips_m$Origin=="United States"]<-"orchid1"
+tree_tips_m$color[tree_tips_m$Origin=="Missispsipi United States "]<-"orchid1"
+tree_tips_m$color[tree_tips_m$Origin=="Nebraska United States"]<-"orchid1"
+tree_tips_m$color[tree_tips_m$Origin%in%c("Benin","Togo","Senegal","Niger","Mali","Ghana","Burkina Faso","Chad")]<-"palegreen2"
+tree_tips_m$color[tree_tips_m$Origin%in%c("Zambia","Zaire","Burund","Cameroon")]<-"gray0"
+tree_tips_m$color[tree_tips_m$Origin%in%c("Uganda","Tanzania","Rwanda","Malawi")]<-"deepskyblue1"
+tree_tips_m$color[!tree_tips_m$color%in%c("blue","green","goldenrod1","red","darkgoldenrod1","darkorchid2","orchid1",
+                          "palegreen2","gray0","deepskyblue1")]<-"gray60"
+
+tree_tips_m<-tree_tips_m[order(tree_tips_m$order),]
+
+png("Sorghum_njtree_unrooted.png",width=3,height=3,res=600,units="in",type="cairo")
+par(mai=c(0.2,0.2,0.2,0.2))
+ntips=length(tree$tip.label)
+cols <- c(tree_tips_m$color, rep("black", nrow(tree$edge)-ntips+1))
+plot.phylo(tree, type="unrooted",edge.col=cols[tree$edge[,2]],show.tip.label=F,use.edge.length = F)
+dev.off()
