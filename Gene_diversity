@@ -1,0 +1,134 @@
+# gene="Glyma14g00570" in version 1
+# Fst and visualization
+chr<-14
+start<-285078-20000
+end<-287747+20000
+
+cd /bulk/zhenbin/recomb/soybean_rr/oil_gene
+
+vcftools="/homes/zhenbin/vcftools/bin/vcftools"
+soybean="/bulk/zhenbin/recomb/soybean_rr/soybean.vcf"
+$vcftools --vcf $soybean --keep wild_soybean.txt --recode --recode-INFO-all --out wild
+$vcftools --vcf $soybean --keep improve_soybean.txt --recode --recode-INFO-all --out imp
+$vcftools --vcf $soybean --keep landrace_soybean.txt --recode --recode-INFO-all --out ldr
+
+$vcftools --vcf $soybean --weir-fst-pop wild_soybean.txt --weir-fst-pop landrace_soybean.txt --out fst_wild_ldr_each
+$vcftools --vcf $soybean --weir-fst-pop wild_soybean.txt --weir-fst-pop improve_soybean.txt --out fst_wild_imp_each
+$vcftools --vcf $soybean --weir-fst-pop improve_soybean.txt --weir-fst-pop landrace_soybean.txt --out fst_ldr_imp_each
+
+gene="Glyma14g00570" # in version 1
+
+chr<-14
+start<-285078-2000
+end<-287747+2000
+
+fst_ldr_imp<-read.table("/bulk/zhenbin/recomb/soybean_rr/oil_gene/fst_ldr_imp_each.weir.fst",header=T)
+fst_wild_imp<-read.table("/bulk/zhenbin/recomb/soybean_rr/oil_gene/fst_wild_imp_each.weir.fst",header=T)
+fst_wild_ldr<-read.table("/bulk/zhenbin/recomb/soybean_rr/oil_gene/fst_wild_ldr_each.weir.fst",header=T)
+
+fst_ldr_imp<-fst_ldr_imp[fst_ldr_imp$CHROM==chr & fst_ldr_imp$POS > start & fst_ldr_imp$POS < end,]
+fst_wild_imp<-fst_wild_imp[fst_wild_imp$CHROM==chr & fst_wild_imp$POS > start & fst_wild_imp$POS < end,]
+fst_wild_ldr<-fst_wild_ldr[fst_wild_ldr$CHROM==chr & fst_wild_ldr$POS > start & fst_wild_ldr$POS < end,]
+fst_ldr_imp$WEIR_AND_COCKERHAM_FST[fst_ldr_imp$WEIR_AND_COCKERHAM_FST<0 | is.na(fst_ldr_imp$WEIR_AND_COCKERHAM_FST)]<-0
+fst_wild_imp$WEIR_AND_COCKERHAM_FST[fst_wild_imp$WEIR_AND_COCKERHAM_FST<0 | is.na(fst_wild_imp$WEIR_AND_COCKERHAM_FST)]<-0
+fst_wild_ldr$WEIR_AND_COCKERHAM_FST[fst_wild_ldr$WEIR_AND_COCKERHAM_FST<0 | is.na(fst_wild_ldr$WEIR_AND_COCKERHAM_FST)]<-0
+
+png("fst_Glyma14g00570.png",width=6,height=3,unit="in",res=600,type="cairo")
+par(mai=c(0.6,0.8,0.2,0.3),mgp=c(2,0.5,0))
+plot(fst_ldr_imp$POS,fst_ldr_imp$WEIR_AND_COCKERHAM_FST,type="l",ylab="Fst",xlab="Position",cex.lab=1.5,axes=F,col=2,ylim=c(0,0.4))
+axis(2,at=c(0,0.1,0.2,0.3,0.4),labels=c(0,0.1,0.2,0.3,0.4),cex.axis=1.2,las=1)
+rect(285078, 0, 287747, 0.8, angle = 45,col = "gray90", border = F)
+lines(fst_ldr_imp$POS,fst_ldr_imp$WEIR_AND_COCKERHAM_FST,type="l",col="cornflowerblue")
+lines(fst_wild_imp$POS,fst_wild_imp$WEIR_AND_COCKERHAM_FST,type="l",col="darkslategray4")
+lines(fst_wild_ldr$POS,fst_wild_ldr$WEIR_AND_COCKERHAM_FST,type="l",col="coral")
+axis(1,at=round(seq(min(fst_ldr_imp$POS),max(fst_ldr_imp$POS),length=5)),pos=0,labels=round(seq(min(fst_ldr_imp$POS),max(fst_ldr_imp$POS),length=5)))
+legend("topright",legend=c("Wild-Imp","Wild-Ldr","Imp-Ldr"),col=c("darkslategray4","coral","cornflowerblue"),pch=15,bty="n",cex=0.8)
+dev.off()
+
+# nucleotide diversity using vcftools based on SNP data from whole-genome sequencing data
+vcftools="/homes/zhenbin/vcftools/bin/vcftools"
+soybean.vcf="/bulk/zhenbin/recomb/soybean_rr/soybean.vcf"
+gene="Glyma14g00570" # in version 1
+
+chr=14
+start=287262 
+end=287747
+
+chr=14
+start=285078
+end=287261
+
+$vcftools --vcf wild.recode.vcf --chr $chr --from-bp $start --to-bp $end --recode --recode-INFO-all --out wild.$gene.cds
+$vcftools --vcf ldr.recode.vcf --chr $chr --from-bp $start --to-bp $end --recode --recode-INFO-all --out ldr.$gene.cds
+$vcftools --vcf imp.recode.vcf --chr $chr --from-bp $start --to-bp $end --recode --recode-INFO-all --out imp.$gene.cds
+
+$vcftools --vcf wild.$gene.cds.recode.vcf --window-pi 2184 --window-pi-step 1 --out wild.$gene
+#0.000966992
+$vcftools --vcf ldr.$gene.cds.recode.vcf --window-pi 2184 --window-pi-step 1 --out ldr.$gene
+#0.000590851
+$vcftools --vcf imp.$gene.cds.recode.vcf --window-pi 2184 --window-pi-step 1 --out imp.$gene
+#0.000608448
+
+
+# function to calculate Tajima's D
+# where n is pop size, S is snp number, pi is the window nucleotide diversity, len is the length of the window 
+tajimas.D<-function(n,S,pi,len){
+    a<-sum(1/c(1:(n-1)))
+    b<-sum(1/c(1:(n-1))^2)
+
+    theta<-S/a
+    pi0<-pi * len
+
+    Bd1<-2*c(n^2+n+3)/(9*n*(n-1))-((n+2)/(n*a))+b/a^2
+    Bd2<-1/(a^2+b)
+    
+    Bd<-Bd1 * Bd2
+    Ad<-((n+1)/(3*c(n-1))-1/a)/a-Bd
+    D<-(pi0-theta)/sqrt(Ad*S+Bd*S^2)
+    return(D)
+}
+
+
+# IBS-based NJ tree 
+
+soybean="/bulk/zhenbin/recomb/soybean_rr/soybean.vcf"
+vcftools="/homes/zhenbin/vcftools/bin/vcftools"
+chr=14
+start=285078
+end=287747
+$vcftools --vcf $soybean --chr 14 --from-bp $start --to-bp $end --recode --recode-INFO-all --out TREE_Glyma14g00570
+
+library(SNPRelate)
+library(phytools)
+vcf.fn <- "TREE_Glyma14g00570.recode.vcf"
+snpgdsVCF2GDS(vcf.fn, "tree_wh.gds", method="biallelic.only")
+genofile <- snpgdsOpen("tree_wh.gds")
+
+ibs.hc <- snpgdsHCluster(snpgdsIBS(genofile, num.thread=4))
+rv <- snpgdsCutTree(ibs.hc)
+save(rv,file="rv.rda")
+library(dendextend)
+library(ape)
+tree<-as.phylo(as.dendrogram(rv$dendrogram))
+    
+tree_tips<-tree$tip.label
+tree_tips<-data.frame(tree_tips,order=1:length(tree_tips))
+
+tree_tips$tree_tips<-as.character(unlist(tree_tips$tree_tips))
+
+
+tree_tips$color<-NA    
+tree_tips$color[tree_tips$tree_tips%in%wild_soybean]<-"purple"
+tree_tips$color[tree_tips$tree_tips%in%landrace_soybean]<-"dodgerblue"
+tree_tips$color[tree_tips$tree_tips%in%improve_soybean]<-"tomato"
+
+writeNexus(tree,file="wanghui_tree")
+
+png("soy_njtree_c_wanghui.png",width=4,height=4,res=600,units="in",type="cairo")
+par(mai=c(0.2,0.2,0.2,0.2))
+ntips=length(tree$tip.label)
+cols <- c(tree_tips$color, rep("black", nrow(tree$edge)-ntips+1))
+#plot.phylo(tree, type="f",edge.col=cols[tree$edge[,2]],show.tip.label=F,use.edge.length = T)
+plot.phylo(tree, type="c",,edge.col=cols[tree$edge[,2]],show.tip.label=F,use.edge.length = T)
+legend("bottomright",legend=c("Wild","Ldr","Imp"),col=c("purple","lightblue","tomato"),pch=15,bty='n')
+dev.off()
